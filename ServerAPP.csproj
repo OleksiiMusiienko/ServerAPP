@@ -7,4 +7,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\CommandDLL\CommandDLL.csproj" />
+    <ProjectReference Include="..\ModelDLL\ModelDLL.csproj" />
+  </ItemGroup>
+
 </Project>
