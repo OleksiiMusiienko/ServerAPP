@@ -4,6 +4,8 @@ using System.Runtime.Serialization.Json;
 using System.Net.Sockets;
 using System.Net;
 using CommandDLL;
+using System.Text;
+using System.Threading.Channels;
 
 
 
@@ -74,7 +76,7 @@ namespace ServerAPP
                         switch (wr.commands)
                         {
                             case Wrapper.Commands.Registratioin:
-                                //RegistratioinUser(wr.user);
+                                RegistratioinUser(wr.user);
                                 break;
                             case Wrapper.Commands.Authorization:
                                 //AuthorizationUser(wr.user);
@@ -94,6 +96,44 @@ namespace ServerAPP
                 {
                     netstream?.Close();
                     tcpClient?.Close(); // закрываем TCP-подключение и освобождаем все ресурсы, связанные с объектом TcpClient.
+                }
+            });
+        }
+
+        private async void RegistratioinUser(User us)
+        {
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    //полученную от клиента информацию добавляем в BD
+                    using (var db = new MessengerContext())
+                    {
+                        var query = from b in db.Users
+                                    where b.IPadress == us.IPadress
+                                    select b;
+                        string theReply = null;
+                        if (query != null)
+                        {
+                            theReply = "Такой пользователь уже зарегистрирован!";
+                            byte[] msg = Encoding.Default.GetBytes(theReply); // конвертируем строку в массив байтов
+                            await netstream.WriteAsync(msg, 0, msg.Length); // записываем данные в NetworkStream.
+                            WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+                        }
+                        else
+                        {
+                            db.Users.Add(us);
+                            db.SaveChanges();
+                            theReply = "Пользователь успешно зарегистрирован!"; // для вывода в консоль сервера
+                            WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+
+                            //SendCollection();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WriteLine("Сервер: " + ex.Message);
                 }
             });
         }
