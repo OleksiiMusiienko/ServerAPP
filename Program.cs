@@ -127,7 +127,7 @@ namespace ServerAPP
                             theReply = "Пользователь успешно зарегистрирован!"; // для вывода в консоль сервера
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
 
-                            //SendCollection();
+                            SendCollection();
                         }
                     }
                 }
@@ -136,6 +136,38 @@ namespace ServerAPP
                     WriteLine("Сервер: " + ex.Message);
                 }
             });
+        }
+        private async void SendCollection()
+        {
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    using (var db = new MessengerContext())
+                    {
+                        var query_to_send = from b in db.Users
+                                            select b;
+                        MemoryStream stream = new MemoryStream();
+                        var jsonFormatter = new DataContractJsonSerializer(typeof(List<User>));
+                        jsonFormatter.WriteObject(stream, query_to_send.ToList());
+                        byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                        stream.Close();
+                        await netstream.WriteAsync(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WriteLine("Сервер: " + ex.Message);
+                }
+            });
+        }
+        private async void AuthorizationUser(User us)
+        {
+
+        }
+        private async void RedactUser(User us)
+        {
+
         }
     }
 }
