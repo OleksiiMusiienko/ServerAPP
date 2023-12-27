@@ -13,7 +13,7 @@ namespace ServerAPP
 {
     internal class Server
     {
-        
+
         static void Main(string[] args)
         {
             Server s = new Server();
@@ -36,7 +36,7 @@ namespace ServerAPP
                         // Принимаем ожидающий запрос на подключение 
                         // Метод AcceptTcpClient — это блокирующий метод, возвращающий объект TcpClient, 
                         // который может использоваться для приема и передачи данных.
-                        TcpClient  client = await listener.AcceptTcpClientAsync();
+                        TcpClient client = await listener.AcceptTcpClientAsync();
                         Receive(client);
                     }
                 }
@@ -81,10 +81,10 @@ namespace ServerAPP
                                 RegistratioinUser(wr.user, netstream);
                                 break;
                             case Wrapper.Commands.Authorization:
-                                //AuthorizationUser(wr.user);
+                                AuthorizationUser(wr.user, netstream);
                                 break;
                             case Wrapper.Commands.Redact:
-                                //RedactUser(wr.user);
+                                RedactUser(wr.user, netstream);
                                 break;
                         }
                         stream.Close();
@@ -104,48 +104,47 @@ namespace ServerAPP
 
         private void RegistratioinUser(User us, NetworkStream netstream)
         {
-            
-                try
+            try
+            {
+                //полученную от клиента информацию добавляем в BD
+                using (var db = new MessengerContext())
                 {
-                    //полученную от клиента информацию добавляем в BD
-                    using (var db = new MessengerContext())
+                    var query = from b in db.Users
+                                where b.Nick == us.Nick
+                                select b;
+                    string theReply = null;
+                    if (query == null)
                     {
-                        var query = from b in db.Users
-                                    where b.Nick == us.Nick
-                                    select b;
-                        string theReply = null;
-                        if (query == null)
-                        {
-                            theReply = "Такой пользователь уже зарегистрирован!";
-                            byte[] msg = Encoding.Default.GetBytes(theReply); // конвертируем строку в массив байтов
-                            netstream.Write(msg, 0, msg.Length); // записываем данные в NetworkStream.
-                            WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
-                        }
-                        else
-                        {
-                            db.Users.Add(us);
-                            db.SaveChanges();
-                            theReply = "Пользователь успешно зарегистрирован!"; // для вывода в консоль сервера
-                            WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+                        theReply = "Такой пользователь уже зарегистрирован!";
+                        byte[] msg = Encoding.Default.GetBytes(theReply); // конвертируем строку в массив байтов
+                        netstream.Write(msg, 0, msg.Length); // записываем данные в NetworkStream.
+                        WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+                    }
+                    else
+                    {
+                        db.Users.Add(us);
+                        db.SaveChanges();
+                        theReply = "Пользователь успешно зарегистрирован!"; // для вывода в консоль сервера
+                        WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
 
-                            SendCollection(us, netstream);
-                        }
+                        SendCollection(us, netstream);
                     }
                 }
-                catch (Exception ex)
-                {
-                    WriteLine("Сервер: " + ex.Message);
-                }
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
         }
         private void SendCollection(User us, NetworkStream netstream)
         {
-                try
+            try
+            {
+                using (var db = new MessengerContext())
                 {
-                    using (var db = new MessengerContext())
-                    {
-                        var query_to_send = from b in db.Users
+                    var query_to_send = from b in db.Users
                                             //where b.Nick!= us.Nick
-                                            select b;
+                                        select b;
                     List<User> list = new List<User>();
 
                     foreach (var b in query_to_send)
@@ -159,25 +158,75 @@ namespace ServerAPP
                     }
 
                     MemoryStream stream = new MemoryStream();
-                        var jsonFormatter = new DataContractJsonSerializer(typeof(List<User>));
-                        jsonFormatter.WriteObject(stream, list);
-                        byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
-                        stream.Close();
-                        netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                    var jsonFormatter = new DataContractJsonSerializer(typeof(List<User>));
+                    jsonFormatter.WriteObject(stream, list);
+                    byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                    stream.Close();
+                    netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
+        }
+        private async void AuthorizationUser(User us, NetworkStream netstream)
+        {
+            try
+            {
+                //проверяем есть ли такой пользователь в BD
+                using (var db = new MessengerContext())
+                {
+                    var query = (from b in db.Users
+                                 where b.IPadress == us.IPadress && b.Nick == us.Nick && b.Password == us.Password
+                                 select b).Single();
+                    if (query != null)
+                    {
+                        string theReply = "Пользователь авторизирован!"; // для вывода в консоль сервера
+                        WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+                        
+                        SendCollection(us, netstream);
+                    }
+                    else
+                    {
+                        string theReply = "Такой пользователь не зарегистрирован!";
+                        WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+                        byte[] msg = Encoding.Default.GetBytes(theReply); // конвертируем строку в массив байтов
+                        netstream.Write(msg, 0, msg.Length); // записываем данные в NetworkStream.
                     }
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
+        } 
+
+            private async void RedactUser(User us, NetworkStream netstream)
+            {
+            try
+            {
+                //редактируем пользователя в BD
+                using (var db = new MessengerContext())
                 {
-                    WriteLine("Сервер: " + ex.Message);
+                    var us_redact = (from b in db.Users
+                                 where b.IPadress == us.IPadress && b.Nick == us.Nick && b.Password == us.Password
+                                 select b).Single();
+
+                    us_redact.Nick = us.Nick;
+                    us_redact.Password = us.Password;
+                    us_redact.IPadress = us.IPadress;
+                    us_redact.Avatar = us.Avatar;
+
+                    db.SaveChanges();
+                    
+                   SendCollection(us, netstream);
                 }
-        }
-        private async void AuthorizationUser(User us)
-        {
-
-        }
-        private async void RedactUser(User us)
-        {
-
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
         }
     }
 }
