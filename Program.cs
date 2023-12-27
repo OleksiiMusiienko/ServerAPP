@@ -13,8 +13,7 @@ namespace ServerAPP
 {
     internal class Server
     {
-        NetworkStream netstream;
-        TcpClient client;
+        
         static void Main(string[] args)
         {
             Server s = new Server();
@@ -37,7 +36,7 @@ namespace ServerAPP
                         // Принимаем ожидающий запрос на подключение 
                         // Метод AcceptTcpClient — это блокирующий метод, возвращающий объект TcpClient, 
                         // который может использоваться для приема и передачи данных.
-                        client = await listener.AcceptTcpClientAsync();
+                        TcpClient  client = await listener.AcceptTcpClientAsync();
                         Receive(client);
                     }
                 }
@@ -51,15 +50,18 @@ namespace ServerAPP
         {
             await Task.Run(async () =>
             {
+                NetworkStream netstream = null;
+
                 try
                 {
                     // Получим объект NetworkStream, используемый для приема и передачи данных.
                     netstream = tcpClient.GetStream();
                     byte[] arr = new byte[tcpClient.ReceiveBufferSize /* размер приемного буфера */];
                     // Читаем данные из объекта NetworkStream.
-                    int len = await netstream.ReadAsync(arr, 0, tcpClient.ReceiveBufferSize);// Возвращает фактически считанное число байтов
                     while (true)
                     {
+                        int len = await netstream.ReadAsync(arr, 0, tcpClient.ReceiveBufferSize);// Возвращает фактически считанное число байтов
+
                         if (len == 0)
                         {
                             netstream.Close();
@@ -76,7 +78,7 @@ namespace ServerAPP
                         switch (wr.commands)
                         {
                             case Wrapper.Commands.Registratioin:
-                                RegistratioinUser(wr.user);
+                                RegistratioinUser(wr.user, netstream);
                                 break;
                             case Wrapper.Commands.Authorization:
                                 //AuthorizationUser(wr.user);
@@ -100,24 +102,23 @@ namespace ServerAPP
             });
         }
 
-        private async void RegistratioinUser(User us)
+        private void RegistratioinUser(User us, NetworkStream netstream)
         {
-            await Task.Run(async () =>
-            {
+            
                 try
                 {
                     //полученную от клиента информацию добавляем в BD
                     using (var db = new MessengerContext())
                     {
                         var query = from b in db.Users
-                                    where b.IPadress == us.IPadress
+                                    where b.Nick == us.Nick
                                     select b;
                         string theReply = null;
-                        if (query != null)
+                        if (query == null)
                         {
                             theReply = "Такой пользователь уже зарегистрирован!";
                             byte[] msg = Encoding.Default.GetBytes(theReply); // конвертируем строку в массив байтов
-                            await netstream.WriteAsync(msg, 0, msg.Length); // записываем данные в NetworkStream.
+                            netstream.Write(msg, 0, msg.Length); // записываем данные в NetworkStream.
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                         }
                         else
@@ -127,7 +128,7 @@ namespace ServerAPP
                             theReply = "Пользователь успешно зарегистрирован!"; // для вывода в консоль сервера
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
 
-                            SendCollection();
+                            SendCollection(us, netstream);
                         }
                     }
                 }
@@ -135,31 +136,40 @@ namespace ServerAPP
                 {
                     WriteLine("Сервер: " + ex.Message);
                 }
-            });
         }
-        private async void SendCollection()
+        private void SendCollection(User us, NetworkStream netstream)
         {
-            await Task.Run(async () =>
-            {
                 try
                 {
                     using (var db = new MessengerContext())
                     {
                         var query_to_send = from b in db.Users
+                                            //where b.Nick!= us.Nick
                                             select b;
-                        MemoryStream stream = new MemoryStream();
+                    List<User> list = new List<User>();
+
+                    foreach (var b in query_to_send)
+                    {
+                        User user = new User();
+                        user.Nick = b.Nick;
+                        user.Password = b.Password;
+                        user.IPadress = b.IPadress;
+                        user.Avatar = b.Avatar;
+                        list.Add(user);
+                    }
+
+                    MemoryStream stream = new MemoryStream();
                         var jsonFormatter = new DataContractJsonSerializer(typeof(List<User>));
-                        jsonFormatter.WriteObject(stream, query_to_send.ToList());
+                        jsonFormatter.WriteObject(stream, list);
                         byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                         stream.Close();
-                        await netstream.WriteAsync(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                        netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
                     }
                 }
                 catch (Exception ex)
                 {
                     WriteLine("Сервер: " + ex.Message);
                 }
-            });
         }
         private async void AuthorizationUser(User us)
         {
