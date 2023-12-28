@@ -14,6 +14,7 @@ namespace ServerAPP
 {
     internal class Server
     {
+        ServerResponse response = new ServerResponse();
 
         static void Main(string[] args)
         {
@@ -123,14 +124,11 @@ namespace ServerAPP
                     if (query != null)
                     {
                         theReply = "Такой пользователь уже зарегистрирован!";
-                        //byte[] msg = Encoding.Default.GetBytes(theReply); // конвертируем строку в массив байтов
-                        //netstream.Write(msg, 0, msg.Length); // записываем данные в NetworkStream.
+                        response.command = theReply;                       
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
-
-                        List<User> listempty = new List<User>();
                         MemoryStream stream = new MemoryStream();
-                        var jsonFormatter = new DataContractJsonSerializer(typeof(List<User>));
-                        jsonFormatter.WriteObject(stream, listempty);
+                        var jsonFormatter = new DataContractJsonSerializer(typeof(ServerResponse));
+                        jsonFormatter.WriteObject(stream, response);
                         byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                         stream.Close();
                         netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
@@ -160,7 +158,8 @@ namespace ServerAPP
                     var query_to_send = from b in db.Users
                                             //where b.Nick!= us.Nick
                                         select b;
-                    List<User> list = new List<User>();
+
+                    List<User> listuser = new List<User>();
 
                     foreach (var b in query_to_send)
                     {
@@ -169,12 +168,13 @@ namespace ServerAPP
                         user.Password = b.Password;
                         user.IPadress = b.IPadress;
                         user.Avatar = b.Avatar;
-                        list.Add(user);
+                        listuser.Add(user);
                     }
+                    response.list = listuser;
 
                     MemoryStream stream = new MemoryStream();
-                    var jsonFormatter = new DataContractJsonSerializer(typeof(List<User>));
-                    jsonFormatter.WriteObject(stream, list);
+                    var jsonFormatter = new DataContractJsonSerializer(typeof(ServerResponse));
+                    jsonFormatter.WriteObject(stream, response);
                     byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                     stream.Close();
                     netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
@@ -193,21 +193,43 @@ namespace ServerAPP
                 using (var db = new MessengerContext())
                 {
                     var query = (from b in db.Users
-                                 where b.IPadress == us.IPadress && b.Nick == us.Nick && b.Password == us.Password
+                                 where b.IPadress == us.IPadress //&& b.Nick == us.Nick && b.Password == us.Password
                                  select b).Single();
+
                     if (query != null)
                     {
-                        string theReply = "Пользователь авторизирован!"; // для вывода в консоль сервера
-                        WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
-                        
-                        SendCollection(us, netstream);
+                        if (query.Nick == us.Nick && query.Password == us.Password)
+                        {
+                            string theReply = "Пользователь авторизирован!"; // для вывода в консоль сервера
+                            WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+
+                            SendCollection(us, netstream);
+                        }
+                        else
+                        {
+                            string theReply = "Введены некорректные данные!";
+                            response.command = theReply;
+                            WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+                            MemoryStream stream = new MemoryStream();
+                            var jsonFormatter = new DataContractJsonSerializer(typeof(ServerResponse));
+                            jsonFormatter.WriteObject(stream, response);
+                            byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                            stream.Close();
+                            netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.                       
+
+                        }
                     }
                     else
                     {
                         string theReply = "Такой пользователь не зарегистрирован!";
+                        response.command = theReply;
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
-                        byte[] msg = Encoding.Default.GetBytes(theReply); // конвертируем строку в массив байтов
-                        netstream.Write(msg, 0, msg.Length); // записываем данные в NetworkStream.
+                        MemoryStream stream = new MemoryStream();
+                        var jsonFormatter = new DataContractJsonSerializer(typeof(ServerResponse));
+                        jsonFormatter.WriteObject(stream, response);
+                        byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                        stream.Close();
+                        netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.                        
                     }
                 }
             }
@@ -225,7 +247,7 @@ namespace ServerAPP
                 using (var db = new MessengerContext())
                 {
                     var us_redact = (from b in db.Users
-                                 where b.IPadress == us.IPadress && b.Nick == us.Nick && b.Password == us.Password
+                                 where b.IPadress == us.IPadress 
                                  select b).Single();
 
                     us_redact.Nick = us.Nick;
