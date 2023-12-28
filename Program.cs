@@ -6,6 +6,7 @@ using System.Net;
 using CommandDLL;
 using System.Text;
 using System.Threading.Channels;
+using System.Collections.Generic;
 
 
 
@@ -74,17 +75,23 @@ namespace ServerAPP
                         MemoryStream stream = new MemoryStream(copy);
                         var jsonFormatter = new DataContractJsonSerializer(typeof(Wrapper));
                         Wrapper wr = jsonFormatter.ReadObject(stream) as Wrapper;// выполняем десериализацию
-                        wr.user.IPadress = tcpClient.Client.RemoteEndPoint.ToString();// информация об удаленном хосте, который отправил датаграмму
+                        User us = new User();
+                        us = wr.user;
+
+                        string IP = tcpClient.Client.RemoteEndPoint.ToString();// информация об удаленном хосте, который отправил датаграмму
+                        string IPRedact = IP.Substring(0,13);
+                        us.IPadress = IPRedact;
+
                         switch (wr.commands)
                         {
                             case Wrapper.Commands.Registratioin:
-                                RegistratioinUser(wr.user, netstream);
+                                RegistratioinUser(us, netstream);
                                 break;
                             case Wrapper.Commands.Authorization:
-                                AuthorizationUser(wr.user, netstream);
+                                AuthorizationUser(us, netstream);
                                 break;
                             case Wrapper.Commands.Redact:
-                                RedactUser(wr.user, netstream);
+                                RedactUser(us, netstream);
                                 break;
                         }
                         stream.Close();
@@ -110,15 +117,23 @@ namespace ServerAPP
                 using (var db = new MessengerContext())
                 {
                     var query = from b in db.Users
-                                where b.Nick == us.Nick
+                                where b.IPadress == us.IPadress
                                 select b;
                     string theReply = null;
-                    if (query == null)
+                    if (query != null)
                     {
                         theReply = "Такой пользователь уже зарегистрирован!";
-                        byte[] msg = Encoding.Default.GetBytes(theReply); // конвертируем строку в массив байтов
-                        netstream.Write(msg, 0, msg.Length); // записываем данные в NetworkStream.
+                        //byte[] msg = Encoding.Default.GetBytes(theReply); // конвертируем строку в массив байтов
+                        //netstream.Write(msg, 0, msg.Length); // записываем данные в NetworkStream.
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+
+                        List<User> listempty = new List<User>();
+                        MemoryStream stream = new MemoryStream();
+                        var jsonFormatter = new DataContractJsonSerializer(typeof(List<User>));
+                        jsonFormatter.WriteObject(stream, listempty);
+                        byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                        stream.Close();
+                        netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
                     }
                     else
                     {
@@ -228,5 +243,6 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
+        
     }
 }
