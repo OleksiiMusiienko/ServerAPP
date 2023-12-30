@@ -121,7 +121,7 @@ namespace ServerAPP
                                 where b.IPadress == us.IPadress
                                 select b;
                     string theReply = null;
-                    if (query != null)
+                    if (query.Count() != 0)
                     {
                         theReply = "Такой пользователь уже зарегистрирован!";
                         response.command = theReply;                       
@@ -193,7 +193,7 @@ namespace ServerAPP
                 using (var db = new MessengerContext())
                 {
                     var query = (from b in db.Users
-                                 where b.IPadress == us.IPadress //&& b.Nick == us.Nick && b.Password == us.Password
+                                 where b.IPadress == us.IPadress
                                  select b).Single();
 
                     if (query != null)
@@ -249,7 +249,7 @@ namespace ServerAPP
                     var us_redact = (from b in db.Users
                                  where b.IPadress == us.IPadress 
                                  select b).Single();
-
+                    
                     us_redact.Nick = us.Nick;
                     us_redact.Password = us.Password;
                     us_redact.IPadress = us.IPadress;
