@@ -92,7 +92,7 @@ namespace ServerAPP
                                 AuthorizationUser(us, netstream);
                                 break;
                             case Wrapper.Commands.Redact:
-                                RedactUser(us, netstream);
+                                RedactUser(wr.NewPassword, us, netstream);
                                 break;
                         }
                         stream.Close();
@@ -239,7 +239,7 @@ namespace ServerAPP
             }
         } 
 
-            private async void RedactUser(User us, NetworkStream netstream)
+            private async void RedactUser(String NewPassword, User us, NetworkStream netstream)
             {
             try
             {
@@ -249,15 +249,29 @@ namespace ServerAPP
                     var us_redact = (from b in db.Users
                                  where b.IPadress == us.IPadress 
                                  select b).Single();
-                    
-                    us_redact.Nick = us.Nick;
-                    us_redact.Password = us.Password;
-                    us_redact.IPadress = us.IPadress;
-                    us_redact.Avatar = us.Avatar;
-
-                    db.SaveChanges();
-                    
-                   SendCollection(us, netstream);
+                    if (us_redact.Password == us.Password) // проверка старого пароля в БД
+                    {
+                        // редактирование
+                        us_redact.Nick = us.Nick;
+                        us_redact.Password = NewPassword;
+                        us_redact.IPadress = us.IPadress;
+                        us_redact.Avatar = us.Avatar;
+                        db.SaveChanges();
+                        SendCollection(us, netstream);
+                    }
+                    else
+                    {
+                        //если старый пароль не совпадает
+                        string theReply ="Некорректный пароль!";
+                        response.command = theReply;
+                        WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+                        MemoryStream stream = new MemoryStream();
+                        var jsonFormatter = new DataContractJsonSerializer(typeof(ServerResponse));
+                        jsonFormatter.WriteObject(stream, response);
+                        byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                        stream.Close();
+                        netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                    }
                 }
             }
             catch (Exception ex)
