@@ -94,6 +94,9 @@ namespace ServerAPP
                             case Wrapper.Commands.Redact:
                                 RedactUser(wr.NewPassword, us, netstream);
                                 break;
+                            case Wrapper.Commands.Remove:
+                                RemoveUser(us, netstream);
+                                break;
                         }
                         stream.Close();
                     }
@@ -156,8 +159,7 @@ namespace ServerAPP
                 using (var db = new MessengerContext())
                 {
                     var query_to_send = from b in db.Users
-                                            //where b.Nick!= us.Nick
-                                        select b;
+                                            select b;
 
                     List<User> listuser = new List<User>();
 
@@ -185,20 +187,26 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
-        private async void AuthorizationUser(User us, NetworkStream netstream)
+        private void AuthorizationUser(User us, NetworkStream netstream)
         {
             try
             {
                 //проверяем есть ли такой пользователь в BD
                 using (var db = new MessengerContext())
                 {
-                    var query = (from b in db.Users
+                    var query = from b in db.Users
                                  where b.IPadress == us.IPadress
-                                 select b).Single();
+                                 select b;
+                    User user = new User();
+
+                    foreach (var b in query)
+                    {
+                        user = b;
+                    }                    
 
                     if (query != null)
                     {
-                        if (query.Nick == us.Nick && query.Password == us.Password)
+                        if (user.Nick == us.Nick && user.Password == us.Password)
                         {
                             string theReply = "Пользователь авторизирован!"; // для вывода в консоль сервера
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
@@ -209,13 +217,14 @@ namespace ServerAPP
                         {
                             string theReply = "Введены некорректные данные!";
                             response.command = theReply;
+                            response.list = null;
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                             MemoryStream stream = new MemoryStream();
                             var jsonFormatter = new DataContractJsonSerializer(typeof(ServerResponse));
                             jsonFormatter.WriteObject(stream, response);
                             byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                             stream.Close();
-                            netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.                       
+                            netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.              
 
                         }
                     }
@@ -239,7 +248,7 @@ namespace ServerAPP
             }
         } 
 
-            private async void RedactUser(String NewPassword, User us, NetworkStream netstream)
+            private void RedactUser(String NewPassword, User us, NetworkStream netstream)
             {
             try
             {
@@ -279,6 +288,36 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
-        
+        private void RemoveUser(User us, NetworkStream netstream)
+        {
+            try
+            {
+                //удаляем пользователя из BD
+                using (var db = new MessengerContext())
+                {
+                    var us_remove = (from b in db.Users
+                                     where b.IPadress == us.IPadress
+                                     select b).Single();
+
+                    db.Remove(us_remove);
+                    db.SaveChanges();
+
+                    string theReply = "Пользователь успешно удален!";
+                    response.command = theReply;
+                    response.list = null;
+                    WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
+                    MemoryStream stream = new MemoryStream();
+                    var jsonFormatter = new DataContractJsonSerializer(typeof(ServerResponse));
+                    jsonFormatter.WriteObject(stream, response);
+                    byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                    stream.Close();
+                    netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.                                      
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
+        }
     }
 }
