@@ -7,6 +7,7 @@ using CommandDLL;
 using System.Text;
 using System.Threading.Channels;
 using System.Collections.Generic;
+using System.Net.Http;
 
 
 
@@ -86,10 +87,10 @@ namespace ServerAPP
                         switch (wr.commands)
                         {
                             case Wrapper.Commands.Registratioin:
-                                RegistratioinUser(us, netstream);
+                                RegistratioinUser(us, netstream, tcpClient);
                                 break;
                             case Wrapper.Commands.Authorization:
-                                AuthorizationUser(us, netstream);
+                                AuthorizationUser(us, netstream, tcpClient);
                                 break;
                             case Wrapper.Commands.Redact:
                                 RedactUser(wr.NewPassword, us, netstream);
@@ -113,7 +114,7 @@ namespace ServerAPP
             });
         }
 
-        private void RegistratioinUser(User us, NetworkStream netstream)
+        private void RegistratioinUser(User us, NetworkStream netstream, TcpClient tcpClient)
         {
             try
             {
@@ -135,6 +136,8 @@ namespace ServerAPP
                         byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                         stream.Close();
                         netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                        netstream?.Close();
+                        tcpClient?.Close();
                     }
                     else
                     {
@@ -190,7 +193,7 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
-        private void AuthorizationUser(User us, NetworkStream netstream)
+        private void AuthorizationUser(User us, NetworkStream netstream, TcpClient tcpClient)
         {
             try
             {
@@ -227,8 +230,9 @@ namespace ServerAPP
                             jsonFormatter.WriteObject(stream, response);
                             byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                             stream.Close();
-                            netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.              
-
+                            netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                            netstream?.Close();
+                            tcpClient?.Close();
                         }
                     }
                     else
@@ -241,7 +245,9 @@ namespace ServerAPP
                         jsonFormatter.WriteObject(stream, response);
                         byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                         stream.Close();
-                        netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.                        
+                        netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                        netstream?.Close();
+                        tcpClient?.Close();
                     }
                 }
             }
