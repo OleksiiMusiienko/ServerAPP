@@ -15,7 +15,7 @@ namespace ServerAPP
     internal class Server
     {
         ServerResponse response = new ServerResponse();
-
+        List<NetworkStream> clients = new List<NetworkStream>();
         static void Main(string[] args)
         {
             Server s = new Server();
@@ -142,8 +142,8 @@ namespace ServerAPP
                         db.SaveChanges();
                         theReply = "Пользователь успешно зарегистрирован!"; // для вывода в консоль сервера
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
-
-                        SendCollection(us, netstream);
+                        clients.Add(netstream);
+                        SendCollection();
                     }
                 }
             }
@@ -152,14 +152,14 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
-        private void SendCollection(User us, NetworkStream netstream)
+        private void SendCollection() 
         {
             try
             {
                 using (var db = new MessengerContext())
                 {
                     var query_to_send = from b in db.Users
-                                            select b;
+                                        select b;
 
                     List<User> listuser = new List<User>();
 
@@ -179,9 +179,12 @@ namespace ServerAPP
                     jsonFormatter.WriteObject(stream, response);
                     byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                     stream.Close();
-                    netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                    foreach (var u in clients) //отправка всем пользователям
+                    {
+                       u.Write(arr, 0, arr.Length); 
+                    }
                 }
-            }
+                }
             catch (Exception ex)
             {
                 WriteLine("Сервер: " + ex.Message);
@@ -210,8 +213,8 @@ namespace ServerAPP
                         {
                             string theReply = "Пользователь авторизирован!"; // для вывода в консоль сервера
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
-
-                            SendCollection(us, netstream);
+                            clients.Add(netstream);
+                            SendCollection(); 
                         }
                         else
                         {
@@ -248,7 +251,7 @@ namespace ServerAPP
             }
         } 
 
-            private void RedactUser(String NewPassword, User us, NetworkStream netstream)
+        private void RedactUser(string NewPassword, User us, NetworkStream netstream)
             {
             try
             {
@@ -266,7 +269,7 @@ namespace ServerAPP
                         us_redact.IPadress = us.IPadress;
                         us_redact.Avatar = us.Avatar;
                         db.SaveChanges();
-                        SendCollection(us, netstream);
+                        SendCollection();
                     }
                     else
                     {
@@ -311,7 +314,9 @@ namespace ServerAPP
                     jsonFormatter.WriteObject(stream, response);
                     byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                     stream.Close();
-                    netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.                                      
+                    netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
+                    clients.Remove(netstream);
+                    SendCollection();
                 }
             }
             catch (Exception ex)
