@@ -169,6 +169,7 @@ namespace ServerAPP
                     foreach (var b in query_to_send)
                     {
                         User user = new User();
+                        user.Id = b.Id;
                         user.Nick = b.Nick;
                         user.Password = b.Password;
                         user.IPadress = b.IPadress;
