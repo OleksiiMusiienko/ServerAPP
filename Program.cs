@@ -19,7 +19,6 @@ namespace ServerAPP
         ServerResponse response = new ServerResponse();
         List<NetworkStream> clients = new List<NetworkStream>();
         List <TcpClient> tcpClients = new List<TcpClient>();
-        List<Message> listMes = new List<Message>();
         static void Main(string[] args)
         {
             Server s = new Server();
@@ -422,9 +421,10 @@ namespace ServerAPP
                 using (var db = new MessengerContext())
                 {
                     var query = from b in db.Messages
-                                where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId
+                                where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId || 
+                                b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
                                 select b;
-                    listMes = new List<Message>();
+                    List<Message> listMes = new List<Message>();
 
                     foreach (var b in query)
                     {
