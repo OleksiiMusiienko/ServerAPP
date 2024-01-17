@@ -391,7 +391,7 @@ namespace ServerAPP
                         var jsonFormatter = new DataContractJsonSerializer(typeof(Message));
                         Message mes = jsonFormatter.ReadObject(stream) as Message;// выполняем десериализацию
 
-                        if (mes.Mes != null) 
+                        if (mes.Mes != "") 
                         {
                             NewMessage(netstream, mes);
                         }
@@ -463,7 +463,7 @@ namespace ServerAPP
                 {
                     User user = new User();
                     var query = from b in db.Users
-                                where b.Id == mes.UserSenderId && b.Id == mes.UserRecepientId
+                                where b.Id == mes.UserSenderId || b.Id == mes.UserRecepientId
                                 select b;
                     foreach (var b in query)
                     {
@@ -473,6 +473,7 @@ namespace ServerAPP
                     if (query != null)
                     {
                         db.Messages.Add(mes);
+                        db.SaveChanges();
                     }
                     TcpClient UserRecepient = null;
                     foreach (var tsp in tcpClients)
