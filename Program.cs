@@ -62,11 +62,11 @@ namespace ServerAPP
                 {
                     // Получим объект NetworkStream, используемый для приема и передачи данных.
                     netstream = tcpClient.GetStream();
-                    byte[] arr = new byte[tcpClient.ReceiveBufferSize /* размер приемного буфера */];
+                    byte[] arr = new byte[100000000 /* размер приемного буфера */];
                     // Читаем данные из объекта NetworkStream.
                     while (true)
                     {
-                        int len = await netstream.ReadAsync(arr, 0, tcpClient.ReceiveBufferSize);// Возвращает фактически считанное число байтов
+                        int len = await netstream.ReadAsync(arr, 0, arr.Length);// Возвращает фактически считанное число байтов
 
                         if (len == 0)
                         {
@@ -84,7 +84,7 @@ namespace ServerAPP
                         us = wr.user;
 
                         string IP = tcpClient.Client.RemoteEndPoint.ToString();// информация об удаленном хосте, который отправил датаграмму
-                        string IPRedact = IP.Substring(0,13);
+                        string IPRedact = IP.Substring(0,IP.IndexOf(":"));
                         us.IPadress = IPRedact;
 
                         switch (wr.commands)
@@ -174,6 +174,7 @@ namespace ServerAPP
                         User user = new User();
                         user.Id = b.Id;
                         user.Nick = b.Nick;
+                        user.Phone = b.Phone;
                         user.Password = b.Password;
                         user.IPadress = b.IPadress;
                         user.Avatar = b.Avatar;
