@@ -182,6 +182,7 @@ namespace ServerAPP
                         user.Password = b.Password;
                         user.IPadress = b.IPadress;
                         user.Avatar = b.Avatar;
+                        user.Online = b.Online;
                         listuser.Add(user);
                     }
                     response.list = listuser;
