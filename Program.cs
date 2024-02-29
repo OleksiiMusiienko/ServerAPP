@@ -9,6 +9,7 @@ using System.Threading.Channels;
 using System.Collections.Generic;
 using System.Net.Http;
 using Azure;
+using MessengerPigeon.Command;
 
 
 
@@ -102,9 +103,9 @@ namespace ServerAPP
                                 RemoveUser(us, netstream);
                                 break;
                             case Wrapper.Commands.Exit:
-                                Exit(netstream, tcpClient);                               
+                                Exit(netstream, tcpClient);
                                 break;
-                                
+
                         }
                         stream.Close();
                     }
@@ -396,8 +397,8 @@ namespace ServerAPP
                         MemoryStream stream = new MemoryStream(copy);
                         var jsonFormatter = new DataContractJsonSerializer(typeof(Message));
                         Message mes = jsonFormatter.ReadObject(stream) as Message;// выполняем десериализацию
-                        
-                        if(mes.UserSenderId == 0 && mes.UserRecepientId == 0)
+
+                        if (mes.UserSenderId == 0 && mes.UserRecepientId == 0)
                         {
                             List<Message> listMes = null;
                             MemoryStream stream1 = new MemoryStream();
@@ -410,12 +411,17 @@ namespace ServerAPP
                             tcpClients.Remove(tcpClient);
                             return;
                         }
+                        if (mes.Mes == "CommandRemoveMessage")
+                        {
+                            RemoveMessage(mes);
+                            HistoryMessage(netstream, mes);
+                        }
 
-                        if (mes.Mes != "")
+                        else if (mes.Mes != "")
                         {
                             NewMessage(netstream, mes);
                         }
-                        
+
                         else
                         {
                             HistoryMessage(netstream, mes);
@@ -450,6 +456,7 @@ namespace ServerAPP
                     foreach (var b in query)
                     {
                         Message message = new Message();
+                        message.Id = b.Id;
                         message.UserSenderId = b.UserSenderId;
                         message.UserRecepientId = b.UserRecepientId;
                         message.Date_Time = b.Date_Time;
@@ -526,7 +533,28 @@ namespace ServerAPP
                 stream1.Close();
                 netstream.Write(arr1, 0, arr1.Length);
                 clients.Remove(netstream);
-        });
+            });
+        }
+        private void  RemoveMessage(Message mes)
+        {
+            try
+            {
+                //удаляем message из BD
+                using (var db = new MessengerContext())
+                {
+                    var Mes_remove = (from b in db.Messages
+                                     where b.Id == mes.Id
+                                     select b).Single();
+
+                    db.Remove(Mes_remove);
+                    db.SaveChanges();                    
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
+
         }
     }
 }
