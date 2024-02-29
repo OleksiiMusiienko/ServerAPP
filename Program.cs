@@ -417,6 +417,12 @@ namespace ServerAPP
                             HistoryMessage(netstream, mes);
                         }
 
+                        else if (mes.Mes == "CommandRemoveAllMessages")
+                        {
+                            RemoveAllMessages(mes);
+                            HistoryMessage(netstream, mes);
+                        }
+
                         else if (mes.Mes != "")
                         {
                             NewMessage(netstream, mes);
@@ -548,6 +554,27 @@ namespace ServerAPP
 
                     db.Remove(Mes_remove);
                     db.SaveChanges();                    
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
+        }
+        private void RemoveAllMessages(Message mes)
+        {
+            try
+            {
+                //удаляем all messages из BD
+                using (var db = new MessengerContext())
+                {
+                    var Mes_remove = from b in db.Messages
+                                      where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId ||
+                                            b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
+                                      select b;
+
+                    db.RemoveRange(Mes_remove);
+                    db.SaveChanges();
                 }
             }
             catch (Exception ex)
