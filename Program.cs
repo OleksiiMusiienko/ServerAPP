@@ -103,7 +103,7 @@ namespace ServerAPP
                                 RemoveUser(us, netstream);
                                 break;
                             case Wrapper.Commands.Exit:
-                                Exit(netstream, tcpClient);
+                                Exit(netstream, us, tcpClient);                               
                                 break;
 
                         }
@@ -226,6 +226,12 @@ namespace ServerAPP
                         if (user.Nick == us.Nick && user.Password == us.Password)
                         {
                             string theReply = "Пользователь авторизирован!"; // для вывода в консоль сервера
+                            var us_online = (from b in db.Users
+                                           where b.IPadress == us.IPadress
+                                           select b).Single();
+                            // редактирование
+                            us_online.Online = us.Online;
+                            db.SaveChanges();
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                             clients.Add(netstream);
                             SendCollection();
@@ -526,11 +532,26 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
-        private async void Exit(NetworkStream netstream, TcpClient tcpClient)
+        private async void Exit(NetworkStream netstream, User user, TcpClient tcpClient)
         {
             await Task.Run(async () =>
             {
+                using (var db = new MessengerContext())
+                {
+                    var us_exit = (from b in db.Users
+                                     where b.IPadress == user.IPadress
+                                     select b).Single();
+                    if (us_exit.Password == user.Password) // проверка старого пароля в БД
+                    {
+                        // редактирование
+                        us_exit.Online = user.Online;
+                        db.SaveChanges();
+                        SendCollection();
+                    }
+                }
+
                 response.command = "Exit";
+
                 response.list= null;
                 MemoryStream stream1 = new MemoryStream();
                 var jsonFormatter1 = new DataContractJsonSerializer(typeof(ServerResponse));
