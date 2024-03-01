@@ -431,7 +431,20 @@ namespace ServerAPP
 
                         else if (mes.Mes != "")
                         {
-                            NewMessage(netstream, mes);
+                            using (var db = new MessengerContext())
+                            {
+                                var Mes_edit = (from b in db.Messages
+                                                where b.Id == mes.Id
+                                                select b).SingleOrDefault();
+                                if (Mes_edit != null)
+                                {               
+                                    Mes_edit.Mes = mes.Mes;
+                                    db.SaveChanges();
+                                    HistoryMessage(netstream, mes);
+                                }
+                                else
+                                    NewMessage(netstream, mes);
+                            }
                         }
 
                         else
@@ -532,6 +545,7 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
+        
         private async void Exit(NetworkStream netstream, User user, TcpClient tcpClient)
         {
             await Task.Run(async () =>
