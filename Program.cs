@@ -486,6 +486,7 @@ namespace ServerAPP
                         message.UserRecepientId = b.UserRecepientId;
                         message.Date_Time = b.Date_Time;
                         message.Mes = b.Mes;
+                        message.MesAudio = b.MesAudio;
                         listMes.Add(message);
                     }
                     MemoryStream stream = new MemoryStream();
