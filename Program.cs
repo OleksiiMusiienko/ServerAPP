@@ -560,8 +560,7 @@ namespace ServerAPP
                     {
                         // редактирование
                         us_exit.Online = user.Online;
-                        db.SaveChanges();
-                        SendCollection();
+                        db.SaveChanges();                        
                     }
                 }
 
@@ -575,6 +574,7 @@ namespace ServerAPP
                 stream1.Close();
                 netstream.Write(arr1, 0, arr1.Length);
                 clients.Remove(netstream);
+                SendCollection();
             });
         }
         private void  RemoveMessage(Message mes)
