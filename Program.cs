@@ -102,8 +102,8 @@ namespace ServerAPP
                                 RemoveUser(us, netstream);
                                 break;
                             case Wrapper.Commands.Exit:
-                                Exit(netstream, us, tcpClient);                               
-                                break;
+                                Exit(netstream, us, tcpClient);
+                                return;
                                 
                         }
                         stream.Close();
@@ -153,6 +153,10 @@ namespace ServerAPP
                         theReply = "Пользователь успешно зарегистрирован!"; // для вывода в консоль сервера
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                         clients.Add(netstream);
+                        var us_online = (from b in db.Users
+                                         where b.IPadress == us.IPadress
+                                         select b).Single();
+                        SendCollectionFrend(us_online, netstream);
                         SendCollection();
                     }
                 }
@@ -203,6 +207,48 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
+        private void SendCollectionFrend(User us,NetworkStream netstream)
+        {
+            try
+            {
+                using (var db1 = new MessengerContext())
+                {
+                    var query = from b in db1.Friends
+                                where b.UserSenderId == us.Id 
+                                select b;
+
+                    List<User> listuserFrend = new List<User>();
+                    foreach (var q in query)
+                    {
+                        var query_Frend = (from d in db1.Users
+                                           where d.Id == q.UserRecepientId
+                                           select d).Single();
+
+                        User user = new User();
+                        user.Id = query_Frend.Id;
+                        user.Nick = query_Frend.Nick;
+                        user.Phone = query_Frend.Phone;
+                        user.Password = query_Frend.Password;
+                        user.IPadress = query_Frend.IPadress;
+                        user.Avatar = query_Frend.Avatar;
+                        user.Online = query_Frend.Online;
+                        listuserFrend.Add(user);
+                    }
+                    response.listFrends = listuserFrend;
+                }
+                    MemoryStream stream = new MemoryStream();
+                    var jsonFormatter = new DataContractJsonSerializer(typeof(ServerResponse));
+                    jsonFormatter.WriteObject(stream, response);
+                    byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                    stream.Close();
+                    netstream.Write(arr, 0, arr.Length);
+                
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
+        }
         private void AuthorizationUser(User us, NetworkStream netstream, TcpClient tcpClient)
         {
             try
@@ -233,6 +279,7 @@ namespace ServerAPP
                             db.SaveChanges();
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                             clients.Add(netstream);
+                            SendCollectionFrend(us_online, netstream);
                             SendCollection();
                         }
                         else
@@ -547,8 +594,11 @@ namespace ServerAPP
                 stream1.Close();
                 netstream.Write(arr1, 0, arr1.Length);
                 clients.Remove(netstream);
-        });
+                netstream?.Close();
+                tcpClient?.Close();
+            });
         }
+
     }
 }
     
