@@ -83,7 +83,6 @@ namespace ServerAPP
                         Wrapper wr = jsonFormatter.ReadObject(stream) as Wrapper;// выполняем десериализацию
                         User us = new User();
                         us = wr.user;
-
                         string IP = tcpClient.Client.RemoteEndPoint.ToString();// информация об удаленном хосте, который отправил датаграмму
                         string IPRedact = IP.Substring(0, IP.IndexOf(":"));
                         us.IPadress = IPRedact;
@@ -101,6 +100,9 @@ namespace ServerAPP
                                 break;
                             case Wrapper.Commands.Remove:
                                 RemoveUser(us, netstream);
+                                break;
+                            case Wrapper.Commands.AddFrend:
+                                AddFriend(us, wr.userFrend, netstream, tcpClient);
                                 break;
                             case Wrapper.Commands.Exit:
                                 Exit(netstream, us, tcpClient);                               
@@ -163,6 +165,32 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
+        private void AddFriend(User user, int us_frend,NetworkStream netstream, TcpClient tcpClient)
+        {
+            try
+            {
+                using (var db = new MessengerContext())
+                {
+                    var friends = from b in db.Friends
+                                   where b.UserSenderId == user.Id && b.UserSenderId == us_frend ||
+                                   b.UserRecepientId == user.Id && b.UserRecepientId == us_frend
+                                   select b;
+
+                    if (friends.Count() == 0)
+                    {
+                        Friends friend = new Friends();
+                        friend.UserSenderId = user.Id;
+                        friend.UserRecepientId = us_frend;
+                        db.Friends.Add(friend);
+                        db.SaveChanges();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
+        }
         private void SendCollection()
         {
             try
@@ -184,7 +212,20 @@ namespace ServerAPP
                         user.IPadress = b.IPadress;
                         user.Avatar = b.Avatar;
                         user.Online = b.Online;
+                        //user.Friends = b.Friends;
+                        //var query_to_friend = from f in db.Friends
+                        //                      where f.UserSenderId == b.Id && f.UserRecepientId == b.Id
+                        //                      select f;
+                        //List<Friends> friends = new List<Friends>();
+                        //if (query_to_friend != null)
+                        //{
+                        //    foreach (var f in query_to_friend)
+                        //    {
+                        //        friends.Add(f);
+                        //    }  
+                        //}
                         listuser.Add(user);
+
                     }
                     response.list = listuser;
 
@@ -204,6 +245,7 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
+       
         private void AuthorizationUser(User us, NetworkStream netstream, TcpClient tcpClient)
         {
             try
@@ -227,8 +269,9 @@ namespace ServerAPP
                         {
                             string theReply = "Пользователь авторизирован!"; // для вывода в консоль сервера
                             var us_online = (from b in db.Users
-                                           where b.IPadress == us.IPadress
+                                           where b.IPadress == us.IPadress 
                                            select b).Single();
+                            
                             // редактирование
                             us_online.Online = us.Online;
                             db.SaveChanges();
