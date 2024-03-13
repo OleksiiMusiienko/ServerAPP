@@ -102,6 +102,9 @@ namespace ServerAPP
                             case Wrapper.Commands.Remove:
                                 RemoveUser(us, netstream);
                                 break;
+                            case Wrapper.Commands.ExitOnline:
+                                ExitOnline(netstream, us, tcpClient);
+                                break;
                             case Wrapper.Commands.Exit:
                                 Exit(netstream, us, tcpClient);                               
                                 break;
@@ -546,8 +549,25 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
-        
         private async void Exit(NetworkStream netstream, User user, TcpClient tcpClient)
+        {
+            await Task.Run(async () =>
+            {
+                using (var db = new MessengerContext())
+                {
+                    var us_exit = (from b in db.Users
+                                   where b.IPadress == user.IPadress
+                                   select b).Single();
+                    if (us_exit.Password == user.Password) // проверка старого пароля в БД
+                    {
+                        // редактирование
+                        us_exit.Online = user.Online;
+                        db.SaveChanges();
+                    }
+                }
+            });
+        }
+        private async void ExitOnline(NetworkStream netstream, User user, TcpClient tcpClient)
         {
             await Task.Run(async () =>
             {
@@ -564,7 +584,7 @@ namespace ServerAPP
                     }
                 }
 
-                response.command = "Exit";
+                response.command = "ExitOnline";
 
                 response.list= null;
                 MemoryStream stream1 = new MemoryStream();
