@@ -388,11 +388,11 @@ namespace ServerAPP
                 {
                     // Получим объект NetworkStream, используемый для приема и передачи данных.
                     netstream = tcpClient.GetStream();
-                    byte[] arr = new byte[tcpClient.ReceiveBufferSize /* размер приемного буфера */];
+                    byte[] arr = new byte[100000000/* размер приемного буфера */];
                     // Читаем данные из объекта NetworkStream.
                     while (true)
                     {
-                        int len = await netstream.ReadAsync(arr, 0, tcpClient.ReceiveBufferSize);// Возвращает фактически считанное число байтов
+                        int len = await netstream.ReadAsync(arr, 0, arr.Length);// Возвращает фактически считанное число байтов
 
                         if (len == 0)
                         {
@@ -490,6 +490,7 @@ namespace ServerAPP
                         message.Date_Time = b.Date_Time;
                         message.Mes = b.Mes;
                         message.MesAudio = b.MesAudio;
+                        message.MesAudioUri = b.MesAudioUri;
                         listMes.Add(message);
                     }
                     MemoryStream stream = new MemoryStream();
