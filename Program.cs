@@ -91,10 +91,20 @@ namespace ServerAPP
                         switch (wr.commands)
                         {
                             case Wrapper.Commands.Registratioin:
-                                RegistratioinUser(us, netstream, tcpClient);
+                                if (!RegistratioinUser(us, netstream, tcpClient))
+                                {
+                                    netstream?.Close();
+                                    tcpClient.Close();
+                                    return;
+                                }
                                 break;
                             case Wrapper.Commands.Authorization:
-                                AuthorizationUser(us, netstream, tcpClient);
+                                if(!AuthorizationUser(us, netstream, tcpClient))
+                                {
+                                    netstream?.Close();
+                                    tcpClient.Close();
+                                    return;
+                                }
                                 break;
                             case Wrapper.Commands.Redact:
                                 RedactUser(wr.NewPassword, us, netstream);
@@ -117,15 +127,15 @@ namespace ServerAPP
                 {
                     WriteLine("Сервер: " + ex.Message);
                 }
-                finally
-                {
-                    netstream?.Close();
-                    tcpClient?.Close(); // закрываем TCP-подключение и освобождаем все ресурсы, связанные с объектом TcpClient.
-                }
+                //finally
+                //{
+                //    netstream?.Close();
+                //    tcpClient?.Close(); // закрываем TCP-подключение и освобождаем все ресурсы, связанные с объектом TcpClient.
+                //}
             });
         }
 
-        private void RegistratioinUser(User us, NetworkStream netstream, TcpClient tcpClient)
+        private bool RegistratioinUser(User us, NetworkStream netstream, TcpClient tcpClient)
         {
             try
             {
@@ -147,8 +157,9 @@ namespace ServerAPP
                         byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                         stream.Close();
                         netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
-                        netstream?.Close();
-                        tcpClient?.Close();
+                        //netstream?.Close();
+                        //tcpClient?.Close();
+                        return false;
                     }
                     else
                     {
@@ -158,6 +169,7 @@ namespace ServerAPP
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                         clients.Add(netstream);
                         SendCollection();
+                        return true;
                     }
                 }
             }
@@ -165,6 +177,7 @@ namespace ServerAPP
             {
                 WriteLine("Сервер: " + ex.Message);
             }
+            return true;
         }
         private void SendCollection()
         {
@@ -189,7 +202,7 @@ namespace ServerAPP
                         user.Online = b.Online;
                         listuser.Add(user);
                     }
-                    response.list = listuser;
+                    response.list = listuser;                    
 
                     MemoryStream stream = new MemoryStream();
                     var jsonFormatter = new DataContractJsonSerializer(typeof(ServerResponse));
@@ -207,7 +220,7 @@ namespace ServerAPP
                 WriteLine("Сервер: " + ex.Message);
             }
         }
-        private void AuthorizationUser(User us, NetworkStream netstream, TcpClient tcpClient)
+        private bool AuthorizationUser(User us, NetworkStream netstream, TcpClient tcpClient)
         {
             try
             {
@@ -238,6 +251,7 @@ namespace ServerAPP
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                             clients.Add(netstream);
                             SendCollection();
+                            return true;
                         }
                         else
                         {
@@ -251,8 +265,9 @@ namespace ServerAPP
                             byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                             stream.Close();
                             netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
-                            netstream?.Close();
-                            tcpClient?.Close();
+                            //netstream?.Close();
+                            //tcpClient?.Close();
+                            return false;
                         }
                     }
                     else
@@ -266,8 +281,9 @@ namespace ServerAPP
                         byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                         stream.Close();
                         netstream.Write(arr, 0, arr.Length); // записываем данные в NetworkStream.
-                        netstream?.Close();
-                        tcpClient?.Close();
+                        //netstream?.Close();
+                        //tcpClient?.Close();
+                        return false;
                     }
                 }
             }
@@ -275,6 +291,7 @@ namespace ServerAPP
             {
                 WriteLine("Сервер: " + ex.Message);
             }
+            return true;
         }
 
         private void RedactUser(string NewPassword, User us, NetworkStream netstream)
@@ -425,13 +442,20 @@ namespace ServerAPP
                             RemoveMessage(mes);
                             HistoryMessage(netstream, mes);
                         }
+                        else if (mes.Mes == "ExitOnline")
+                        {
+                            netstream?.Close();
+                        }
 
                         else if (mes.Mes == "CommandRemoveAllMessages")
                         {
                             RemoveAllMessages(mes);
                             HistoryMessage(netstream, mes);
                         }
-
+                        else if (mes.Mes == "Repeat")
+                        {
+                            HistoryMessageRepeat(netstream, mes);
+                        }
                         else if (mes.Mes != "")
                         {
                             using (var db = new MessengerContext())
@@ -448,8 +472,7 @@ namespace ServerAPP
                                 else
                                     NewMessage(netstream, mes);
                             }
-                        }
-
+                        }                        
                         else
                         {
                             HistoryMessage(netstream, mes);
@@ -493,11 +516,68 @@ namespace ServerAPP
                         message.MesAudioUri = b.MesAudioUri;
                         listMes.Add(message);
                     }
+
+
                     MemoryStream stream = new MemoryStream();
                     var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
                     jsonFormatter.WriteObject(stream, listMes);
                     byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                     stream.Close();
+
+                    int length = arr.Length;
+                    MemoryStream stream1 = new MemoryStream();
+                    var jsonFormatter1 = new DataContractJsonSerializer(typeof(object));
+                    jsonFormatter1.WriteObject(stream1, length);
+                    byte[] arr1 = stream1.ToArray(); // записываем содержимое потока в байтовый массив
+                    stream1.Close();
+                    netstream.Write(arr1, 0, arr1.Length);                                       
+                    
+                    
+                    if (client != null)
+                    {
+                        NetworkStream netstreamUserRecepient = null;
+                        netstreamUserRecepient = client.GetStream();
+                        netstreamUserRecepient.Write(arr, 0, arr.Length);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
+        }
+        private void HistoryMessageRepeat(NetworkStream netstream, Message mes, TcpClient client = null)
+        {
+            try
+            {
+                //проверяем есть ли такой пользователь в BD
+                using (var db = new MessengerContext())
+                {
+                    var query = from b in db.Messages
+                                where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId ||
+                                b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
+                                select b;
+                    List<Message> listMes = new List<Message>();
+
+                    foreach (var b in query)
+                    {
+                        Message message = new Message();
+                        message.Id = b.Id;
+                        message.UserSenderId = b.UserSenderId;
+                        message.UserRecepientId = b.UserRecepientId;
+                        message.Date_Time = b.Date_Time;
+                        message.Mes = b.Mes;
+                        message.MesAudio = b.MesAudio;
+                        message.MesAudioUri = b.MesAudioUri;
+                        listMes.Add(message);
+                    }
+
+                    MemoryStream stream = new MemoryStream();
+                    var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
+                    jsonFormatter.WriteObject(stream, listMes);
+                    byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                    stream.Close();           
+
                     netstream.Write(arr, 0, arr.Length);
                     if (client != null)
                     {
