@@ -491,9 +491,11 @@ namespace ServerAPP
                 }
             });
         }
-        private void HistoryMessage(NetworkStream netstream, Message mes, TcpClient client = null)
+        private async void HistoryMessage(NetworkStream netstream, Message mes, TcpClient client = null)
         {
-            try
+            await Task.Run(async () =>
+            {
+                try
             {
                 //проверяем есть ли такой пользователь в BD
                 using (var db = new MessengerContext())
@@ -516,8 +518,6 @@ namespace ServerAPP
                         message.MesAudioUri = b.MesAudioUri;
                         listMes.Add(message);
                     }
-
-
                     MemoryStream stream = new MemoryStream();
                     var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
                     jsonFormatter.WriteObject(stream, listMes);
@@ -545,10 +545,14 @@ namespace ServerAPP
             {
                 WriteLine("Сервер: " + ex.Message);
             }
+            });
         }
-        private void HistoryMessageRepeat(NetworkStream netstream, Message mes, TcpClient client = null)
+        private async void HistoryMessageRepeat(NetworkStream netstream, Message mes, TcpClient client = null)
         {
-            try
+
+                await Task.Run(async () =>
+                {
+                    try
             {
                 //проверяем есть ли такой пользователь в BD
                 using (var db = new MessengerContext())
@@ -571,7 +575,6 @@ namespace ServerAPP
                         message.MesAudioUri = b.MesAudioUri;
                         listMes.Add(message);
                     }
-
                     MemoryStream stream = new MemoryStream();
                     var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
                     jsonFormatter.WriteObject(stream, listMes);
@@ -591,10 +594,13 @@ namespace ServerAPP
             {
                 WriteLine("Сервер: " + ex.Message);
             }
+                });
         }
-        private void NewMessage(NetworkStream netstream, Message mes)
+        private async void NewMessage(NetworkStream netstream, Message mes)
         {
-            try
+            await Task.Run(async () =>
+            {
+                try
             {
                 //проверяем есть ли такой пользователь в BD
                 using (var db = new MessengerContext())
@@ -622,13 +628,17 @@ namespace ServerAPP
                             UserRecepient = tsp;
                         }
                     }
-                    HistoryMessage(netstream, mes, UserRecepient);
+                    if (UserRecepient != null)
+                    { 
+                        HistoryMessage(netstream, mes, UserRecepient);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 WriteLine("Сервер: " + ex.Message);
             }
+            });
         }
         private async void Exit(NetworkStream netstream, User user, TcpClient tcpClient)
         {
