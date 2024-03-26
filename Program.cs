@@ -18,7 +18,7 @@ namespace ServerAPP
     {
         ServerResponse response = new ServerResponse();
         List<NetworkStream> clients = new List<NetworkStream>();
-        List<TcpClient> tcpClients = new List<TcpClient>();
+        List<NetworkStream> tcpClients = new List<NetworkStream>();
         static void Main(string[] args)
         {
             Server s = new Server();
@@ -364,7 +364,6 @@ namespace ServerAPP
                         // Метод AcceptTcpClient — это блокирующий метод, возвращающий объект TcpClient, 
                         // который может использоваться для приема и передачи данных.
                         TcpClient client = await lis.AcceptTcpClientAsync();
-                        tcpClients.Add(client);
                         ReceiveMessender(client);
                     }
                 }
@@ -384,7 +383,8 @@ namespace ServerAPP
                 {
                     // Получим объект NetworkStream, используемый для приема и передачи данных.
                     netstream = tcpClient.GetStream();
-                    byte[] arr = new byte[tcpClient.ReceiveBufferSize /* размер приемного буфера */];
+                    tcpClients.Add(netstream);
+                    byte[] arr = new byte[100000000/* размер приемного буфера */];
                     // Читаем данные из объекта NetworkStream.
                     while (true)
                     {
@@ -413,7 +413,7 @@ namespace ServerAPP
                             stream1.Close();
                             netstream.Write(arr1, 0, arr1.Length);
 
-                            tcpClients.Remove(tcpClient);
+                            tcpClients.Remove(netstream);
                             return;
                         }
 
@@ -467,12 +467,65 @@ namespace ServerAPP
                     jsonFormatter.WriteObject(stream, listMes);
                     byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                     stream.Close();
-                    netstream.Write(arr, 0, arr.Length);
+
+                    int length = arr.Length;
+                    MemoryStream stream1 = new MemoryStream();
+                    var jsonFormatter1 = new DataContractJsonSerializer(typeof(object));
+                    jsonFormatter1.WriteObject(stream1, length);
+                    byte[] arr1 = stream1.ToArray(); // записываем содержимое потока в байтовый массив
+                    stream1.Close();
+                    netstream.Write(arr1, 0, arr1.Length);                                       
+                    
+                    
                     if (client != null)
                     {
                         NetworkStream netstreamUserRecepient = null;
                         netstreamUserRecepient = client.GetStream();
-                        netstreamUserRecepient.Write(arr, 0, arr.Length);
+                        netstreamUserRecepient.Write(arr1, 0, arr1.Length);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLine("Сервер: " + ex.Message);
+            }
+        }
+        private void HistoryMessageRepeat(NetworkStream netstream, Message mes, NetworkStream client = null)
+        {
+            try
+            {
+                //проверяем есть ли такой пользователь в BD
+                using (var db = new MessengerContext())
+                {
+                    var query = from b in db.Messages
+                                where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId ||
+                                b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
+                                select b;
+                    List<Message> listMes = new List<Message>();
+
+                    foreach (var b in query)
+                    {
+                        Message message = new Message();
+                        message.Id = b.Id;
+                        message.UserSenderId = b.UserSenderId;
+                        message.UserRecepientId = b.UserRecepientId;
+                        message.Date_Time = b.Date_Time;
+                        message.Mes = b.Mes;
+                        message.MesAudio = b.MesAudio;
+                        message.MesAudioUri = b.MesAudioUri;
+                        listMes.Add(message);
+                    }
+
+                    MemoryStream stream = new MemoryStream();
+                    var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
+                    jsonFormatter.WriteObject(stream, listMes);
+                    byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                    stream.Close();           
+
+                    netstream.Write(arr, 0, arr.Length);
+                    if (client != null)
+                    {
+                        client.Write(arr, 0, arr.Length);
                     }
                 }
             }
@@ -502,7 +555,7 @@ namespace ServerAPP
                         db.Messages.Add(mes);
                         db.SaveChanges();
                     }
-                    TcpClient UserRecepient = null;
+                    NetworkStream UserRecepient = null;
                     foreach (var tsp in tcpClients)
                     {
                         string ip = tsp.Client.RemoteEndPoint.ToString().Substring(0, 13);
