@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using Azure;
 using MessengerPigeon.Command;
+using System;
 
 
 
@@ -114,10 +115,14 @@ namespace ServerAPP
                                 break;
                             case Wrapper.Commands.ExitOnline:
                                 ExitOnline(netstream, us, tcpClient);
-                                break;
+                                netstream?.Close();
+                                tcpClient.Close();
+                                return;
                             case Wrapper.Commands.Exit:
-                                Exit(netstream, us, tcpClient);                               
-                                break;
+                                Exit(netstream, us, tcpClient);
+                                netstream?.Close();
+                                tcpClient.Close();
+                                return;
 
                         }
                         stream.Close();
@@ -423,8 +428,14 @@ namespace ServerAPP
                         MemoryStream stream = new MemoryStream(copy);
                         var jsonFormatter = new DataContractJsonSerializer(typeof(Message));
                         Message mes = jsonFormatter.ReadObject(stream) as Message;// выполняем десериализацию
-
-                        if (mes.UserSenderId == 0 && mes.UserRecepientId == 0)
+                        if (mes.Mes == "ExitOnline")
+                        {
+                            tcpClients.Remove(netstream);
+                            netstream?.Close();
+                            tcpClient?.Close();
+                            return;
+                        }
+                        else if (mes.UserSenderId == 0 && mes.UserRecepientId == 0)
                         {
                             List<Message> listMes = null;
                             MemoryStream stream1 = new MemoryStream();
@@ -442,11 +453,6 @@ namespace ServerAPP
                             RemoveMessage(mes);
                             HistoryMessage(netstream, mes);
                         }
-                        else if (mes.Mes == "ExitOnline")
-                        {
-                            netstream?.Close();
-                        }
-
                         else if (mes.Mes == "CommandRemoveAllMessages")
                         {
                             RemoveAllMessages(mes);
@@ -480,172 +486,126 @@ namespace ServerAPP
                         stream.Close();
                     }
                 }
+                catch(IOException)
+                {
+                    tcpClients?.Remove(netstream);
+                    netstream?.Close();
+                    tcpClient?.Close();
+
+                }
                 catch (Exception ex)
                 {
                     WriteLine("Сервер: " + ex.Message);
-                }
-                finally
-                {
                     netstream?.Close();
-                    tcpClient?.Close(); // закрываем TCP-подключение и освобождаем все ресурсы, связанные с объектом TcpClient.
+                    tcpClient?.Close();
                 }
+                //finally
+                //{
+                //    netstream?.Close();
+                //    tcpClient?.Close(); // закрываем TCP-подключение и освобождаем все ресурсы, связанные с объектом TcpClient.
+                //}
             });
         }
-        private async void HistoryMessage(NetworkStream netstream, Message mes, TcpClient client = null)
+        private async void HistoryMessage(NetworkStream netstream, Message mes, NetworkStream client = null)
         {
             await Task.Run(async () =>
             {
                 try
-            {
-                //проверяем есть ли такой пользователь в BD
-                using (var db = new MessengerContext())
                 {
-                    var query = from b in db.Messages
-                                where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId ||
-                                b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
-                                select b;
-                    List<Message> listMes = new List<Message>();
-
-                    foreach (var b in query)
+                    //проверяем есть ли такой пользователь в BD
+                    using (var db = new MessengerContext())
                     {
-                        Message message = new Message();
-                        message.Id = b.Id;
-                        message.UserSenderId = b.UserSenderId;
-                        message.UserRecepientId = b.UserRecepientId;
-                        message.Date_Time = b.Date_Time;
-                        message.Mes = b.Mes;
-                        message.MesAudio = b.MesAudio;
-                        message.MesAudioUri = b.MesAudioUri;
-                        listMes.Add(message);
-                    }
-                    MemoryStream stream = new MemoryStream();
-                    var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
-                    jsonFormatter.WriteObject(stream, listMes);
-                    byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
-                    stream.Close();
+                        var query = from b in db.Messages
+                                    where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId ||
+                                    b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
+                                    select b;
+                        List<Message> listMes = new List<Message>();
 
-                    int length = arr.Length;
-                    MemoryStream stream1 = new MemoryStream();
-                    var jsonFormatter1 = new DataContractJsonSerializer(typeof(object));
-                    jsonFormatter1.WriteObject(stream1, length);
-                    byte[] arr1 = stream1.ToArray(); // записываем содержимое потока в байтовый массив
-                    stream1.Close();
-                    netstream.Write(arr1, 0, arr1.Length);                                       
-                    
-                    
-                    if (client != null)
-                    {
-                        NetworkStream netstreamUserRecepient = null;
-                        netstreamUserRecepient = client.GetStream();
-                        netstreamUserRecepient.Write(arr, 0, arr.Length);
+                        foreach (var b in query)
+                        {
+                            Message message = new Message();
+                            message.Id = b.Id;
+                            message.UserSenderId = b.UserSenderId;
+                            message.UserRecepientId = b.UserRecepientId;
+                            message.Date_Time = b.Date_Time;
+                            message.Mes = b.Mes;
+                            message.MesAudio = b.MesAudio;
+                            message.MesAudioUri = b.MesAudioUri;
+                            listMes.Add(message);
+                        }
+                        MemoryStream stream = new MemoryStream();
+                        var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
+                        jsonFormatter.WriteObject(stream, listMes);
+                        byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                        stream.Close();
+                        
+                        int length = arr.Length;
+                        MemoryStream stream1 = new MemoryStream();
+                        var jsonFormatter1 = new DataContractJsonSerializer(typeof(object));
+                        jsonFormatter1.WriteObject(stream1, length);
+                        byte[] arr1 = stream1.ToArray(); // записываем содержимое потока в байтовый массив
+                        stream1.Close();
+                        netstream.Write(arr1, 0, arr1.Length);
+
+
+                        if (client != null)
+                        {
+                            client.Write(arr1, 0, arr1.Length);
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                WriteLine("Сервер: " + ex.Message);
-            }
+                catch (Exception ex)
+                {
+                    WriteLine("Сервер: " + ex.Message);
+                }
             });
         }
-        private async void HistoryMessageRepeat(NetworkStream netstream, Message mes, TcpClient client = null)
+       
+        private async void HistoryMessageRepeat(NetworkStream netstream, Message mes, NetworkStream client = null)
         {
-
                 await Task.Run(async () =>
                 {
                     try
-            {
-                //проверяем есть ли такой пользователь в BD
-                using (var db = new MessengerContext())
-                {
-                    var query = from b in db.Messages
-                                where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId ||
-                                b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
-                                select b;
-                    List<Message> listMes = new List<Message>();
-
-                    foreach (var b in query)
                     {
-                        Message message = new Message();
-                        message.Id = b.Id;
-                        message.UserSenderId = b.UserSenderId;
-                        message.UserRecepientId = b.UserRecepientId;
-                        message.Date_Time = b.Date_Time;
-                        message.Mes = b.Mes;
-                        message.MesAudio = b.MesAudio;
-                        message.MesAudioUri = b.MesAudioUri;
-                        listMes.Add(message);
-                    }
-                    MemoryStream stream = new MemoryStream();
-                    var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
-                    jsonFormatter.WriteObject(stream, listMes);
-                    byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
-                    stream.Close();
+                        //проверяем есть ли такой пользователь в BD
+                        using (var db = new MessengerContext())
+                        {
+                            var query = from b in db.Messages
+                                        where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId ||
+                                        b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
+                                        select b;
+                            List<Message> listMes = new List<Message>();
 
-                    int length = arr.Length;
-                    MemoryStream stream1 = new MemoryStream();
-                    var jsonFormatter1 = new DataContractJsonSerializer(typeof(object));
-                    jsonFormatter1.WriteObject(stream1, length);
-                    byte[] arr1 = stream1.ToArray(); // записываем содержимое потока в байтовый массив
-                    stream1.Close();
-                    netstream.Write(arr1, 0, arr1.Length);                                       
-                    
-                    
-                    if (client != null)
+                            foreach (var b in query)
+                            {
+                                Message message = new Message();
+                                message.Id = b.Id;
+                                message.UserSenderId = b.UserSenderId;
+                                message.UserRecepientId = b.UserRecepientId;
+                                message.Date_Time = b.Date_Time;
+                                message.Mes = b.Mes;
+                                message.MesAudio = b.MesAudio;
+                                message.MesAudioUri = b.MesAudioUri;
+                                listMes.Add(message);
+                            }
+
+                            MemoryStream stream = new MemoryStream();
+                            var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
+                            jsonFormatter.WriteObject(stream, listMes);
+                            byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
+                            stream.Close();
+
+                            netstream.Write(arr, 0, arr.Length);
+                            if (client != null)
+                            {
+                                client.Write(arr, 0, arr.Length);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
                     {
-                        NetworkStream netstreamUserRecepient = null;
-                        netstreamUserRecepient = client.GetStream();
-                        netstreamUserRecepient.Write(arr1, 0, arr1.Length);
+                        WriteLine("Сервер: " + ex.Message);
                     }
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteLine("Сервер: " + ex.Message);
-            }
-        }
-        private void HistoryMessageRepeat(NetworkStream netstream, Message mes, NetworkStream client = null)
-        {
-            try
-            {
-                //проверяем есть ли такой пользователь в BD
-                using (var db = new MessengerContext())
-                {
-                    var query = from b in db.Messages
-                                where b.UserSenderId == mes.UserSenderId && b.UserRecepientId == mes.UserRecepientId ||
-                                b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
-                                select b;
-                    List<Message> listMes = new List<Message>();
-
-                    foreach (var b in query)
-                    {
-                        Message message = new Message();
-                        message.Id = b.Id;
-                        message.UserSenderId = b.UserSenderId;
-                        message.UserRecepientId = b.UserRecepientId;
-                        message.Date_Time = b.Date_Time;
-                        message.Mes = b.Mes;
-                        message.MesAudio = b.MesAudio;
-                        message.MesAudioUri = b.MesAudioUri;
-                        listMes.Add(message);
-                    }
-
-                    MemoryStream stream = new MemoryStream();
-                    var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
-                    jsonFormatter.WriteObject(stream, listMes);
-                    byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
-                    stream.Close();           
-
-                    netstream.Write(arr, 0, arr.Length);
-                    if (client != null)
-                    {
-                        client.Write(arr, 0, arr.Length);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteLine("Сервер: " + ex.Message);
-            }
                 });
         }
         private async void NewMessage(NetworkStream netstream, Message mes)
@@ -674,15 +634,15 @@ namespace ServerAPP
                     NetworkStream UserRecepient = null;
                     foreach (var tsp in tcpClients)
                     {
-                        string ip = tsp.Client.RemoteEndPoint.ToString().Substring(0, 13);
-                        if (user.IPadress == ip)
-                        {
-                            UserRecepient = tsp;
+                            string ip = tsp.Socket.RemoteEndPoint.ToString();
+                            if (user.IPadress == ip)
+                            {
+                                UserRecepient = tsp;
+                            }
                         }
-                    }
-                    if (UserRecepient != null)
+                        if (UserRecepient != null)
                     { 
-                        HistoryMessage(netstream, mes, UserRecepient);
+                        HistoryMessage(netstream, mes);
                     }
                 }
             }
@@ -706,8 +666,12 @@ namespace ServerAPP
                         // редактирование
                         us_exit.Online = user.Online;
                         db.SaveChanges();
+                        string theReply = "Пользователь вышел из сети";
+                        WriteLine(user.Nick + " " + user.IPadress + " " + theReply);
                     }
                 }
+                clients.Remove(netstream);
+                SendCollection();
             });
         }
         private async void ExitOnline(NetworkStream netstream, User user, TcpClient tcpClient)
@@ -723,19 +687,11 @@ namespace ServerAPP
                     {
                         // редактирование
                         us_exit.Online = user.Online;
-                        db.SaveChanges();                        
+                        db.SaveChanges();
+                        string theReply = "Пользователь вышел из сети";
+                        WriteLine(user.Nick + " " + user.IPadress + " " + theReply);
                     }
                 }
-
-                response.command = "ExitOnline";
-
-                response.list= null;
-                MemoryStream stream1 = new MemoryStream();
-                var jsonFormatter1 = new DataContractJsonSerializer(typeof(ServerResponse));
-                jsonFormatter1.WriteObject(stream1, response);
-                byte[] arr1 = stream1.ToArray(); // записываем содержимое потока в байтовый массив
-                stream1.Close();
-                netstream.Write(arr1, 0, arr1.Length);
                 clients.Remove(netstream);
                 SendCollection();
             });
