@@ -639,11 +639,8 @@ namespace ServerAPP
                             {
                                 UserRecepient = tsp;
                             }
-                        }
-                        if (UserRecepient != null)
-                    { 
-                        HistoryMessage(netstream, mes);
                     }
+                    HistoryMessage(netstream, mes, UserRecepient);
                 }
             }
             catch (Exception ex)
