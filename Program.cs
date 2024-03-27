@@ -50,7 +50,7 @@ namespace ServerAPP
                 }
                 catch (Exception ex)
                 {
-                    WriteLine("Сервер: " + ex.Message);
+                    WriteLine("Server: " + ex.Message);
                 }
             });
         }
@@ -130,7 +130,7 @@ namespace ServerAPP
                 }
                 catch (Exception ex)
                 {
-                    WriteLine("Сервер: " + ex.Message);
+                    WriteLine("Server: " + ex.Message);
                 }
                 //finally
                 //{
@@ -153,7 +153,7 @@ namespace ServerAPP
                     string theReply = null;
                     if (query.Count() != 0)
                     {
-                        theReply = "Такой пользователь уже зарегистрирован!";
+                        theReply = "This user is already registered!";
                         response.command = theReply;
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                         MemoryStream stream = new MemoryStream();
@@ -170,7 +170,7 @@ namespace ServerAPP
                     {
                         db.Users.Add(us);
                         db.SaveChanges();
-                        theReply = "Пользователь успешно зарегистрирован!"; // для вывода в консоль сервера
+                        theReply = "User has been successfully registered!"; // для вывода в консоль сервера
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                         clients.Add(netstream);
                         SendCollection();
@@ -180,7 +180,7 @@ namespace ServerAPP
             }
             catch (Exception ex)
             {
-                WriteLine("Сервер: " + ex.Message);
+                WriteLine("Server: " + ex.Message);
             }
             return true;
         }
@@ -222,7 +222,7 @@ namespace ServerAPP
             }
             catch (Exception ex)
             {
-                WriteLine("Сервер: " + ex.Message);
+                WriteLine("Server: " + ex.Message);
             }
         }
         private bool AuthorizationUser(User us, NetworkStream netstream, TcpClient tcpClient)
@@ -246,7 +246,7 @@ namespace ServerAPP
                     {
                         if (user.Nick == us.Nick && user.Password == us.Password)
                         {
-                            string theReply = "Пользователь авторизирован!"; // для вывода в консоль сервера
+                            string theReply = "User has been successfully authorized!"; // для вывода в консоль сервера
                             var us_online = (from b in db.Users
                                            where b.IPadress == us.IPadress
                                            select b).Single();
@@ -260,7 +260,7 @@ namespace ServerAPP
                         }
                         else
                         {
-                            string theReply = "Введены некорректные данные!";
+                            string theReply = "Incorrect data entered!";
                             response.command = theReply;
                             response.list = null;
                             WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
@@ -277,7 +277,7 @@ namespace ServerAPP
                     }
                     else
                     {
-                        string theReply = "Такой пользователь не зарегистрирован!";
+                        string theReply = "This user is not registered!";
                         response.command = theReply;
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                         MemoryStream stream = new MemoryStream();
@@ -294,7 +294,7 @@ namespace ServerAPP
             }
             catch (Exception ex)
             {
-                WriteLine("Сервер: " + ex.Message);
+                WriteLine("Server: " + ex.Message);
             }
             return true;
         }
@@ -322,7 +322,7 @@ namespace ServerAPP
                     else
                     {
                         //если старый пароль не совпадает
-                        string theReply = "Некорректный пароль!";
+                        string theReply = "Incorrect password!";
                         response.command = theReply;
                         WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
                         MemoryStream stream = new MemoryStream();
@@ -336,7 +336,7 @@ namespace ServerAPP
             }
             catch (Exception ex)
             {
-                WriteLine("Сервер: " + ex.Message);
+                WriteLine("Server: " + ex.Message);
             }
         }
         private void RemoveUser(User us, NetworkStream netstream)
@@ -353,7 +353,7 @@ namespace ServerAPP
                     db.Remove(us_remove);
                     db.SaveChanges();
 
-                    string theReply = "Пользователь успешно удален!";
+                    string theReply = "User successfully deleted!";
                     response.command = theReply;
                     response.list = null;
                     WriteLine(us.Nick + " " + us.IPadress + " " + theReply);
@@ -369,7 +369,7 @@ namespace ServerAPP
             }
             catch (Exception ex)
             {
-                WriteLine("Сервер: " + ex.Message);
+                WriteLine("Server: " + ex.Message);
             }
         }
         // Реализация методов обменна сообщениями 
@@ -395,7 +395,7 @@ namespace ServerAPP
                 }
                 catch (Exception ex)
                 {
-                    WriteLine("Сервер: " + ex.Message);
+                    WriteLine("Server: " + ex.Message);
                 }
             });
         }
@@ -495,7 +495,7 @@ namespace ServerAPP
                 }
                 catch (Exception ex)
                 {
-                    WriteLine("Сервер: " + ex.Message);
+                    WriteLine("Server: " + ex.Message);
                     netstream?.Close();
                     tcpClient?.Close();
                 }
@@ -556,7 +556,7 @@ namespace ServerAPP
                 }
                 catch (Exception ex)
                 {
-                    WriteLine("Сервер: " + ex.Message);
+                    WriteLine("Server: " + ex.Message);
                 }
             });
         }
@@ -604,7 +604,7 @@ namespace ServerAPP
                     }
                     catch (Exception ex)
                     {
-                        WriteLine("Сервер: " + ex.Message);
+                        WriteLine("Server: " + ex.Message);
                     }
                 });
         }
@@ -645,7 +645,7 @@ namespace ServerAPP
             }
             catch (Exception ex)
             {
-                WriteLine("Сервер: " + ex.Message);
+                WriteLine("Server: " + ex.Message);
             }
             });
         }
@@ -663,7 +663,7 @@ namespace ServerAPP
                         // редактирование
                         us_exit.Online = user.Online;
                         db.SaveChanges();
-                        string theReply = "Пользователь вышел из сети";
+                        string theReply = "User has logged out!";
                         WriteLine(user.Nick + " " + user.IPadress + " " + theReply);
                     }
                 }
@@ -685,7 +685,7 @@ namespace ServerAPP
                         // редактирование
                         us_exit.Online = user.Online;
                         db.SaveChanges();
-                        string theReply = "Пользователь вышел из сети";
+                        string theReply = "User has logged out!";
                         WriteLine(user.Nick + " " + user.IPadress + " " + theReply);
                     }
                 }
@@ -710,7 +710,7 @@ namespace ServerAPP
             }
             catch (Exception ex)
             {
-                WriteLine("Сервер: " + ex.Message);
+                WriteLine("Server: " + ex.Message);
             }
         }
         private void RemoveAllMessages(Message mes)
@@ -731,9 +731,8 @@ namespace ServerAPP
             }
             catch (Exception ex)
             {
-                WriteLine("Сервер: " + ex.Message);
+                WriteLine("Server: " + ex.Message);
             }
-
         }
     }
 }
