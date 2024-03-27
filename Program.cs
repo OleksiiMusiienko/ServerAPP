@@ -520,7 +520,6 @@ namespace ServerAPP
                                     b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
                                     select b;
                         List<Message> listMes = new List<Message>();
-
                         foreach (var b in query)
                         {
                             Message message = new Message();
@@ -550,7 +549,14 @@ namespace ServerAPP
 
                         if (client != null)
                         {
-                            client.Write(arr1, 0, arr1.Length);
+                            string ip = netstream.Socket.RemoteEndPoint.ToString();
+                            string IPRedact = ip.Substring(0, ip.IndexOf(":"));
+                            MemoryStream stream2 = new MemoryStream();
+                            var jsonFormatter2 = new DataContractJsonSerializer(typeof(object));
+                            jsonFormatter2.WriteObject(stream2, IPRedact);
+                            byte[] arr2 = stream2.ToArray(); // записываем содержимое потока в байтовый массив
+                            stream2.Close();
+                            client.Write(arr2, 0, arr2.Length);
                         }
                     }
                 }
@@ -635,7 +641,8 @@ namespace ServerAPP
                     foreach (var tsp in tcpClients)
                     {
                             string ip = tsp.Socket.RemoteEndPoint.ToString();
-                            if (user.IPadress == ip)
+                            string IPRedact = ip.Substring(0, ip.IndexOf(":"));
+                            if (user.IPadress == IPRedact)
                             {
                                 UserRecepient = tsp;
                             }
