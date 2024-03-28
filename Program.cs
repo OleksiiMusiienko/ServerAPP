@@ -437,10 +437,12 @@ namespace ServerAPP
                         }
                         else if (mes.UserSenderId == 0 && mes.UserRecepientId == 0)
                         {
-                            List<Message> listMes = null;
+                            ListMessage listMessage = new ListMessage();
+                            listMessage.listMessages= null;
+                            listMessage.len = 0;
                             MemoryStream stream1 = new MemoryStream();
-                            var jsonFormatter1 = new DataContractJsonSerializer(typeof(List<Message>));
-                            jsonFormatter1.WriteObject(stream1, listMes);
+                            var jsonFormatter1 = new DataContractJsonSerializer(typeof(ListMessage));
+                            jsonFormatter1.WriteObject(stream1, listMessage);
                             byte[] arr1 = stream1.ToArray(); // записываем содержимое потока в байтовый массив
                             stream1.Close();
                             netstream.Write(arr1, 0, arr1.Length);
@@ -520,9 +522,10 @@ namespace ServerAPP
                                     b.UserSenderId == mes.UserRecepientId && b.UserRecepientId == mes.UserSenderId
                                     select b;
                         List<Message> listMes = new List<Message>();
+                        Message message = null;
                         foreach (var b in query)
                         {
-                            Message message = new Message();
+                            message = new Message();
                             message.Id = b.Id;
                             message.UserSenderId = b.UserSenderId;
                             message.UserRecepientId = b.UserRecepientId;
@@ -532,16 +535,21 @@ namespace ServerAPP
                             message.MesAudioUri = b.MesAudioUri;
                             listMes.Add(message);
                         }
+                        ListMessage wrapper = new ListMessage();
+                        wrapper.listMessages = listMes;
                         MemoryStream stream = new MemoryStream();
-                        var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
-                        jsonFormatter.WriteObject(stream, listMes);
+                        var jsonFormatter = new DataContractJsonSerializer(typeof(ListMessage));
+                        jsonFormatter.WriteObject(stream, wrapper);
                         byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                         stream.Close();
                         
                         int length = arr.Length;
+                        MesWrapper length1 = new MesWrapper();
+                        length1.len= length;
+                        length1.Mes = null;
                         MemoryStream stream1 = new MemoryStream();
-                        var jsonFormatter1 = new DataContractJsonSerializer(typeof(object));
-                        jsonFormatter1.WriteObject(stream1, length);
+                        var jsonFormatter1 = new DataContractJsonSerializer(typeof(MesWrapper));
+                        jsonFormatter1.WriteObject(stream1, length1);
                         byte[] arr1 = stream1.ToArray(); // записываем содержимое потока в байтовый массив
                         stream1.Close();
                         netstream.Write(arr1, 0, arr1.Length);
@@ -549,11 +557,12 @@ namespace ServerAPP
 
                         if (client != null)
                         {
-                            string ip = netstream.Socket.RemoteEndPoint.ToString();
-                            string IPRedact = ip.Substring(0, ip.IndexOf(":"));
+                            MesWrapper wrapper1 = new MesWrapper();
+                            wrapper1.Mes = message;
+                            wrapper1.len = -1;
                             MemoryStream stream2 = new MemoryStream();
-                            var jsonFormatter2 = new DataContractJsonSerializer(typeof(object));
-                            jsonFormatter2.WriteObject(stream2, IPRedact);
+                            var jsonFormatter2 = new DataContractJsonSerializer(typeof(MesWrapper));
+                            jsonFormatter2.WriteObject(stream2, wrapper1);
                             byte[] arr2 = stream2.ToArray(); // записываем содержимое потока в байтовый массив
                             stream2.Close();
                             client.Write(arr2, 0, arr2.Length);
@@ -594,18 +603,16 @@ namespace ServerAPP
                                 message.MesAudioUri = b.MesAudioUri;
                                 listMes.Add(message);
                             }
-
+                            ListMessage wrapper = new ListMessage();
+                            wrapper.listMessages = listMes;
                             MemoryStream stream = new MemoryStream();
-                            var jsonFormatter = new DataContractJsonSerializer(typeof(List<Message>));
-                            jsonFormatter.WriteObject(stream, listMes);
+                            var jsonFormatter = new DataContractJsonSerializer(typeof(ListMessage));
+                            jsonFormatter.WriteObject(stream, wrapper);
                             byte[] arr = stream.ToArray(); // записываем содержимое потока в байтовый массив
                             stream.Close();
 
                             netstream.Write(arr, 0, arr.Length);
-                            if (client != null)
-                            {
-                                client.Write(arr, 0, arr.Length);
-                            }
+                            
                         }
                     }
                     catch (Exception ex)
